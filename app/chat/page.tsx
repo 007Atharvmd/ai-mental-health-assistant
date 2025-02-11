@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Mic, MicOff } from "lucide-react"; // Import Mic icons
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,12 +18,11 @@ export default function Chat() {
   const [messages, setMessages] = useState<{ message: string; role: string }[]>([]);
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const router = useRouter();
 
-  // Fetch user_id from localStorage on component mount
   useEffect(() => {
     const storedUserId = localStorage.getItem("user_id");
-    
     if (storedUserId) {
       const parsedUserId = parseInt(storedUserId, 10);
       if (!isNaN(parsedUserId)) {
@@ -37,13 +37,13 @@ export default function Chat() {
     }
   }, []);
 
-  // Fetch chat history from backend
-const fetchChatHistory = async (userId: number) => {
-  try {
-    const response = await fetch(`http://localhost:8000/chat-history/${userId}`);
-    const data = await response.json();
+  // Fetch chat history
+  const fetchChatHistory = async (userId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8000/chat-history/${userId}`);
+      const data = await response.json();
 
-    if (Array.isArray(data)) {
+if (Array.isArray(data)) {
       const formattedMessages = [];
       data.forEach((chat) => {
         formattedMessages.push({ message: chat.message, role: "user" }); // Store user message
@@ -57,12 +57,10 @@ const fetchChatHistory = async (userId: number) => {
     console.error("❌ Error fetching chat history:", error);
   }
 };
-
   // Handle sending a message
   const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!input.trim()) return;
-
     if (userId === null) {
       alert("Please log in to start chatting.");
       console.error("❌ User ID is missing! Please log in.");
@@ -72,7 +70,6 @@ const fetchChatHistory = async (userId: number) => {
     const messageToSend = input;
     setInput("");
 
-    // Append user message to chat
     setMessages((prev) => [...prev, { message: messageToSend, role: "user" }]);
 
     try {
@@ -81,10 +78,6 @@ const fetchChatHistory = async (userId: number) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, message: messageToSend }),
       });
-
-      if (!response.ok) {
-        throw new Error(`❌ Failed to send message. Status: ${response.status}`);
-      }
 
       const data = await response.json();
 
@@ -96,32 +89,57 @@ const fetchChatHistory = async (userId: number) => {
     }
   };
 
+  // Speech Recognition Functionality
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Your browser does not support voice input.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onerror = (event) => console.error("Speech recognition error:", event.error);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+
+    recognition.start();
+  };
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
       <header className="relative flex justify-center items-center p-4 bg-white shadow">
         <h1 className="text-2xl font-heading text-primary">Mental Health Assistant</h1>
         <div className="absolute right-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-8 h-8 rounded-full">
-              <Avatar>
-                <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => alert("Settings coming soon!")}>Settings</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => {
-              localStorage.removeItem("user_id");
-              router.push("/");
-            }}>
-              Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-       </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-8 h-8 rounded-full">
+                <Avatar>
+                  <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
+                  <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => alert("Settings coming soon!")}>Settings</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => {
+                localStorage.removeItem("user_id");
+                router.push("/");
+              }}>
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       {/* Chat Messages */}
@@ -142,16 +160,17 @@ const fetchChatHistory = async (userId: number) => {
         ))}
       </div>
 
-      {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="p-4 bg-white border-t">
-        <div className="flex space-x-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message here..."
-          />
-          <Button type="submit">Send</Button>
-        </div>
+      {/* Message Input with Voice Button */}
+      <form onSubmit={handleSendMessage} className="p-4 bg-white border-t flex space-x-2">
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type your message or use voice input..."
+        />
+        <Button type="button" onClick={startListening} className="p-2">
+          {isListening ? <MicOff className="text-red-500" /> : <Mic />}
+        </Button>
+        <Button type="submit">Send</Button>
       </form>
     </div>
   );
