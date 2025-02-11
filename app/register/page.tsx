@@ -45,7 +45,7 @@ export default function Register() {
         password: formData.password.trim(),
       });
 
-      if (response.status === 201) {
+      if (response.status === 201 || response.status === 200) {
         setSuccess("Registration successful! Redirecting to login...");
         setTimeout(() => {
           router.push('/'); // Redirect after 2s
@@ -117,7 +117,7 @@ export default function Register() {
           <CardFooter className="justify-center">
             <p>
               Already have an account?{" "}
-              <Link href="/login" className="text-blue-500 hover:underline">
+              <Link href="/" className="text-blue-500 hover:underline">
                 Log In
               </Link>
             </p>
