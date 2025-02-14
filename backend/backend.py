@@ -7,9 +7,11 @@ import bcrypt
 import subprocess
 import logging
 from textblob import TextBlob
+from googletrans import Translator
 
 # Initialize FastAPI app
 app = FastAPI()
+translator = Translator()
 
 # Enable CORS for frontend connection
 app.add_middleware(
@@ -97,6 +99,14 @@ def get_ai_response(prompt: str) -> str:
     except Exception as e:
         return f"Error: {str(e)}"
 
+def translate_text(text: str, target_lang: str = "en") -> str:
+    try:
+        return translator.translate(text, dest=target_lang).text
+    except Exception as e:
+        logger.error(f"Translation failed: {e}")
+        return text  # Return original text if translation fails
+
+
 # Request Models
 class UserRegister(BaseModel):
     username: EmailStr
@@ -110,6 +120,7 @@ class UserLogin(BaseModel):
 class ChatMessage(BaseModel):
     user_id: int
     message: str
+    language: str = "en"
 
 # User Registration Endpoint
 @app.post("/register", response_model=dict)
@@ -143,20 +154,36 @@ def login(user: UserLogin):
 # Chat Processing Endpoint
 @app.post("/chat", response_model=dict)
 def chat(chat_msg: ChatMessage):
+    # Translate Hindi → English if needed
+    if chat_msg.language == "hi":
+        chat_msg.message = translate_text(chat_msg.message, "en")
+    
+    # Crisis detection
     if detect_crisis(chat_msg.message):
-        return {"ai_response": "\u26a0 Please seek immediate help. Call a crisis hotline.", "mood": "crisis"}
+        return {"ai_response": "⚠ Please seek immediate help. Call a crisis hotline.", "mood": "crisis"}
+
+    # Sentiment analysis
     mood = analyze_sentiment(chat_msg.message)
+    
+    # Get AI response
     ai_response = get_ai_response(chat_msg.message)
+
+    # Translate AI response back to Hindi if needed
+    if chat_msg.language == "hi":
+        ai_response = translate_text(ai_response, "hi")
+
+    # Save chat to database
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO chats (user_id, message, response, mood) VALUES (%s, %s, %s, %s)", (chat_msg.user_id, chat_msg.message, ai_response, mood))
+        cursor.execute("INSERT INTO chats (user_id, message, response, mood) VALUES (%s, %s, %s, %s)", 
+                       (chat_msg.user_id, chat_msg.message, ai_response, mood))
         conn.commit()
     finally:
         cursor.close()
         conn.close()
-    return {"ai_response": ai_response, "mood": mood, "message": "Response sent successfully"}
 
+    return {"ai_response": ai_response, "mood": mood, "message": "Response sent successfully"}
 # Retrieve Chat History Endpoint
 @app.get("/chat-history/{user_id}", response_model=list)
 def view_chat_history(user_id: int):
