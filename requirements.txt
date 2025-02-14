@@ -1,0 +1,22 @@
+# Backend dependencies
+fastapi
+uvicorn
+pydantic
+sqlalchemy
+psycopg2-binary
+alembic
+python-dotenv
+
+# AI and ML libraries
+transformers
+torch
+ollama
+numpy
+scikit-learn
+
+# Speech recognition
+SpeechRecognition
+requests
+
+# Translation
+googletrans==4.0.0-rc1
