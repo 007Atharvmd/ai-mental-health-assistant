@@ -36,20 +36,20 @@ The **AI-Driven Mental Health Assistant** is an AI-powered chatbot designed to s
 
 ## Installation & Setup
 
-### 1️⃣ Prerequisites:
+Prerequisites:
 - Install **Ollama** → [Download Here](https://ollama.ai/)
 - Install **Node.js & npm** → [Download Here](https://nodejs.org/)
 - Install **Python 3.8+**
 - Install **PostgreSQL** → Ensure a database is set up
 
-### 2️⃣ Clone the Repository:
+Clone the Repository:
 ```sh
 git clone https://github.com/your-repo/mental-health-assistant.git
 cd mental-health-assistant```
 
 
 
-### Backend Setup:
+Backend Setup:
 Create a virtual environment:
 
 python -m venv venv
@@ -64,7 +64,7 @@ Run the backend server
 python3 backend.py
 
 
-### Frontend Setup:
+Frontend Setup:
 
 Navigate to the frontend/ folder:
 
