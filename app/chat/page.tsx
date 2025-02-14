@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, MicOff, Globe } from "lucide-react"; // Import Mic and Globe icons
+import { Mic, MicOff, Globe } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,8 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [isListening, setIsListening] = useState(false);
-  const [language, setLanguage] = useState("en"); // Language state
+  const [language, setLanguage] = useState("en");
+  const [averageMood, setAverageMood] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function Chat() {
       if (!isNaN(parsedUserId)) {
         setUserId(parsedUserId);
         fetchChatHistory(parsedUserId);
+        fetchAverageMood(parsedUserId); // Fetch mood on page load
       } else {
         console.error("❌ Invalid user_id format in localStorage:", storedUserId);
       }
@@ -43,7 +45,6 @@ export default function Chat() {
     try {
       const response = await fetch(`http://localhost:8000/chat-history/${userId}`);
       const data = await response.json();
-
       if (Array.isArray(data)) {
         const formattedMessages = [];
         data.forEach((chat) => {
@@ -59,13 +60,23 @@ export default function Chat() {
     }
   };
 
-  // Handle sending a message
+  // Fetch average mood
+  const fetchAverageMood = async (userId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8000/average-mood/${userId}`);
+      const data = await response.json();
+      setAverageMood(data.average_mood || "No Data");
+    } catch (error) {
+      console.error("❌ Error fetching average mood:", error);
+    }
+  };
+
+  // Send message
   const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!input.trim()) return;
     if (userId === null) {
       alert("Please log in to start chatting.");
-      console.error("❌ User ID is missing! Please log in.");
       return;
     }
 
@@ -84,12 +95,13 @@ export default function Chat() {
       if (data.ai_response) {
         setMessages((prev) => [...prev, { message: data.ai_response, role: "ai" }]);
       }
+      fetchAverageMood(userId); // Update mood after each message
     } catch (error) {
       console.error("❌ Error sending message:", error);
     }
   };
 
-  // Speech Recognition Functionality
+  // Speech recognition
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -114,12 +126,28 @@ export default function Chat() {
     recognition.start();
   };
 
+  // Mood emoji mapping
+  const moodEmojis: { [key: string]: string } = {
+    positive: "😊",
+    neutral: "😐",
+    depressed: "😞",
+    anxious: "😰",
+    crisis: "🚨",
+    "No Data": "❓",
+  };
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
       <header className="relative flex justify-center items-center p-4 bg-white shadow">
         <h1 className="text-2xl font-heading text-primary">Mental Health Assistant</h1>
         <div className="absolute right-4 flex items-center space-x-4">
+          {/* Mood Display */}
+          {averageMood && (
+            <span className="text-sm font-semibold flex items-center">
+              {moodEmojis[averageMood]} {averageMood}
+            </span>
+          )}
           {/* Language Switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -166,7 +194,7 @@ export default function Chat() {
         ))}
       </div>
 
-      {/* Message Input with Voice Button */}
+      {/* Input Section */}
       <form onSubmit={handleSendMessage} className="p-4 bg-white border-t flex space-x-2">
         <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." />
         <Button type="button" onClick={startListening} className="p-2">

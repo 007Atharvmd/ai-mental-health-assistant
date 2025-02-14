@@ -8,6 +8,7 @@ import subprocess
 import logging
 from textblob import TextBlob
 from googletrans import Translator
+from collections import Counter
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -194,6 +195,24 @@ def view_chat_history(user_id: int):
     cursor.close()
     conn.close()
     return [{"message": chat[0], "ai_response": chat[1], "mood": chat[2], "timestamp": chat[3]} for chat in chats]
+
+# Retrieve User's Average Mood
+@app.get("/average-mood/{user_id}", response_model=dict)
+def get_average_mood(user_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT mood FROM chats WHERE user_id = %s", (user_id,))
+    moods = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    if not moods:
+        return {"average_mood": "No Data", "message": "User has no recorded chats."}
+    
+    mood_counts = Counter([mood[0] for mood in moods])
+    most_common_mood = mood_counts.most_common(1)[0][0]
+    
+    return {"average_mood": most_common_mood, "message": "Average mood calculated successfully."}
 
 # Run FastAPI App
 if __name__ == "__main__":
